@@ -3,7 +3,7 @@ import datetime
 import logging
 import aioschedule
 import re
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, executor, types
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters import BoundFilter
 from aiogram.types import KeyboardButton, \
@@ -805,7 +805,7 @@ async def scheduler():
 
 
 async def on_startup(dp):
-    await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
+    # await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
     asyncio.create_task(scheduler())
     dp.filters_factory.bind(Load)
     dp.filters_factory.bind(Loadnews)
@@ -816,20 +816,20 @@ async def on_startup(dp):
 async def on_shutdown(dp):
     cur.close()
     conn.close()
-    await bot.delete_webhook()
+    # await bot.delete_webhook()
 
-
-# if __name__ == '__main__':
-#     executor.start_polling(dp, skip_updates=False, on_startup=on_startup)
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    start_webhook(
-        dispatcher=dp,
-        webhook_path=WEBHOOK_PATH,
-        skip_updates=True,
-        on_startup=on_startup,
-        on_shutdown=on_shutdown,
-        host=WEBAPP_HOST,
-        port=WEBAPP_PORT,
-    )
+    executor.start_polling(dp, skip_updates=False, on_startup=on_startup)
+
+# if __name__ == '__main__':
+#     logging.basicConfig(level=logging.INFO)
+#     start_webhook(
+#         dispatcher=dp,
+#         webhook_path=WEBHOOK_PATH,
+#         skip_updates=True,
+#         on_startup=on_startup,
+#         on_shutdown=on_shutdown,
+#         host=WEBAPP_HOST,
+#         port=WEBAPP_PORT,
+#     )
