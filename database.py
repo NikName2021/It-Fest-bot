@@ -72,9 +72,13 @@ async def parsing_domins():
 
 
 async def add_new_domain(domaint):
+    """
+        Функция проверки доменна и сохранения его в бд
+    """
     cur.execute("SELECT domain FROM domains")
     load_domains = [i[0] for i in cur.fetchall()]
     if len(load_domains) == 20:
+        # проверка на колличество сохраненных хэштэгов
         return False
     new_domain = domaint.split("/")[-1]
     response = requests.get("https://api.vk.com/method/wall.get",
@@ -87,6 +91,7 @@ async def add_new_domain(domaint):
     if response.status_code in [404, 503, 500, 403]:
         return
     elif new_domain in load_domains:
+        # проверка на то, что в бд еще нет такого хэштэга
         return "Exists"
     else:
         cur.execute("INSERT INTO domains VALUES(%s, %s)", (new_domain, 'YES'))

@@ -1,10 +1,9 @@
 import asyncio
 import datetime
-import sqlite3
 import logging
 import aioschedule
 import re
-from aiogram import Bot, Dispatcher, executor, types
+from aiogram import Bot, Dispatcher, types
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters import BoundFilter
 from aiogram.types import KeyboardButton, \
@@ -15,8 +14,8 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils.exceptions import BotBlocked
 from aiogram.utils.executor import start_webhook
 from config_bot import (BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH,
-                          WEBAPP_HOST, WEBAPP_PORT, PASSWORD_FOR_ADMIN)
-from config_bot import BOT_TOKEN, PASSWORD_FOR_ADMIN, conn, cur
+                        WEBAPP_HOST, WEBAPP_PORT, PASSWORD_FOR_ADMIN,
+                        conn, cur)
 from database import parsing_domins, add_new_domain
 
 bot = Bot(token=BOT_TOKEN, parse_mode=types.ParseMode.HTML)
@@ -36,11 +35,16 @@ but_and_hash = {f'button{i[1]}': i[0] for i in cur.fetchall()}
 
 
 class Admin(StatesGroup):
+    """ Класс машины состояний,
+    который ожидает пароль проверки для admin и доменн"""
     waiting_password = State()
     domain = State()
 
 
 class Newhashtag(StatesGroup):
+    """ Класс машины состояний,
+    который ожидает все данные для добавления хэштэга"""
+
     hashtag = State()
     command_for_hashtag = State()
     short_but = State()
@@ -50,11 +54,17 @@ class Newhashtag(StatesGroup):
 
 
 class Globmessage(StatesGroup):
+    """ Класс машины состояний,
+        который ожидает сообщение и подтверждение его отправки """
+
     info_message = State()
     yes_or_no = State()
 
 
 class Load(BoundFilter):
+    """ Класс - фильтр, проверяемый вхождение сообщения
+     пользователя в load_hashtag и load_commands"""
+
     async def check(self, message: types.Message):
         if "#" in message.text:
             if message.text in load_hashtags:
@@ -66,6 +76,9 @@ class Load(BoundFilter):
 
 
 class Loadunsub(BoundFilter):
+    """ Класс - фильтр, проверяемый вхождение сообщения
+         пользователя в hash_unsub.values"""
+
     async def check(self, message: types.Message):
         if message.text[1:] in [i[1:] for i in hash_unsub.values()]:
             return True
@@ -73,6 +86,9 @@ class Loadunsub(BoundFilter):
 
 
 class Loadnews(BoundFilter):
+    """ Класс - фильтр, проверяемый вхождение сообщения
+            пользователя в but_and_news.keys"""
+
     async def check(self, call: types.CallbackQuery):
         if call.data in [i for i in but_and_news.keys()]:
             return True
@@ -80,6 +96,9 @@ class Loadnews(BoundFilter):
 
 
 class Loadsub(BoundFilter):
+    """ Класс - фильтр, проверяемый вхождение сообщения
+                пользователя в but_and_hash.keys"""
+
     async def check(self, call: types.CallbackQuery):
         if call.data in but_and_hash.keys():
             return True
@@ -87,6 +106,7 @@ class Loadsub(BoundFilter):
 
 
 async def sub_users(id_player):
+    """Функция проверки подписок пользователя"""
     cur.execute(f"SELECT * FROM users WHERE iduser = {int(id_player)} ")
     check_save = cur.fetchone()
     if isinstance(check_save, tuple):
@@ -94,6 +114,7 @@ async def sub_users(id_player):
 
 
 async def check_status(id_us):
+    """Функция проверки пользоваетеля на администратора"""
     cur.execute(f"SELECT * FROM users WHERE iduser = {int(id_us)}")
     check_save = cur.fetchone()
     if isinstance(check_save, tuple) and check_save[2] == "admin":
@@ -101,6 +122,8 @@ async def check_status(id_us):
 
 
 async def varible():
+    """Функция обновления данных из бд
+    после добавления нового хэштэга"""
     global load_hashtags
     global load_commands
     global hash_unsub
@@ -275,8 +298,8 @@ async def get_10_news(message: types.Message):
     rec = cur.fetchall()[:10]
     for i in rec:
         news = f"<b>{datetime.datetime.fromtimestamp(i[1])}</b>\n" \
-                       f"{i[4]}\n" \
-                       f"<u>{i[3]}</u>\n"
+               f"{i[4]}\n" \
+               f"<u>{i[3]}</u>\n"
         await message.answer(news)
         # отправка 10 новостей по всем хэштэгам  в чат пользователю
 
@@ -332,7 +355,6 @@ async def sub_to_news_on_hash(call: types.CallbackQuery):
             # то обновляем список подписок новым хэштэгом
             await call.message.answer(f'Вы подписались на рассылку по {button}')
     else:
-        info = tuple([int(id_player), button, 'user'])
         cur.execute("INSERT INTO users VALUES(%s, %s, %s)", (int(id_player), button, 'user'))
         # добавляем пользователя в базу, сохраняя его id и хэштэг для рассылки
         await call.message.answer(f'Вы подписались на рассылку по {button}')
@@ -359,6 +381,10 @@ async def st_hashtags(message: types.Message):
 
 @dp.message_handler(text="Добавленные хэштэги")
 async def adden_hashtags(message: types.Message):
+    """
+        Функция создания кнопок клавиатуры по добавленным админом хэштэгам
+        для удобной подписки
+    """
     cur.execute(f"SELECT * FROM info_hashtag WHERE Status = 'YES'")
     check_save = [i[0] for i in cur.fetchall()]
     if bool(check_save):
@@ -375,6 +401,9 @@ async def adden_hashtags(message: types.Message):
 
 @dp.message_handler(Load())
 async def sub_and_news(message: types.Message):
+    """
+        Функция вывода кнопок для полписки и отправки 3 новостей
+    """
     if "/" in message.text:
         cur.execute(f"SELECT * FROM info_hashtag WHERE command = '{message.text[1:]}'")
     else:
@@ -386,6 +415,7 @@ async def sub_and_news(message: types.Message):
     await message.answer(f"""<b>{check_save[3]}</b>
 {check_save[4]}""", reply_markup=keyboard_tc)
 
+
 #              ********************************
 # ******************* ADMIN Commands ********************************************
 #              ********************************
@@ -394,6 +424,9 @@ async def sub_and_news(message: types.Message):
 @dp.message_handler(Text(equals='Доп.команды'))
 @dp.message_handler(commands="help_admin")
 async def help_admin(message: types.Message):
+    """
+    Функция вывода специальных команд админа
+    """
     if await check_status(message.from_user.id) == "admin":
         await message.answer("""<b>Это справочник по командам бота для админа.</b>
 Перезапуск бота, нажми /start  
@@ -408,6 +441,9 @@ async def help_admin(message: types.Message):
 
 @dp.message_handler(commands="cancel", state="*")
 async def cancel(message: types.Message, state: FSMContext):
+    """
+    Функция выхода из машины состояний
+    """
     current_state = await state.get_state()
     if current_state is None:
         await message.answer("Еще не начат ввод даннных")
@@ -419,7 +455,7 @@ async def cancel(message: types.Message, state: FSMContext):
 @dp.message_handler(Text(equals='Команды admin'))
 async def commands_admin(message: types.Message):
     """
-    Данная функция используется для приветственной фразы и создания кнопок клавиатуры
+        Функция используется для вывода кнопок клавиатуры для команд admin
     """
     add_hashtag = KeyboardButton(text="Добавить хэштэг")
     add_domen = KeyboardButton(text="Добавить доменн")
@@ -439,20 +475,28 @@ async def commands_admin(message: types.Message):
 
 @dp.message_handler(commands="admin")
 async def admin(message: types.Message):
+    """
+        Функция входа в машину состояний по команде /admin
+    """
     await Admin.waiting_password.set()
     await message.answer("Введи пароль:")
 
 
 @dp.message_handler(state=Admin.waiting_password)
 async def becoming_an_admin(message: types.Message, state: FSMContext):
+    """
+        Функция проверки пароля. В случае успеха изменение статуса на admin
+    """
     if message.text == PASSWORD_FOR_ADMIN:
         id_player = message.from_user.id
         cur.execute(f"SELECT * FROM users WHERE iduser = {int(id_player)}")
         check_save = cur.fetchone()
+        # запрос статуса пользователя
         if isinstance(check_save, tuple):
             if check_save[2] == "user":
                 update = f"""Update users set status = %s where iduser = %s"""
                 cur.execute(update, ('admin', int(id_player)))
+                # изменение статуса на admin
                 await message.answer("""Теперь вы имеете права админа и вам доступны новые команды.
 Чтобы увидить новые команды,
 нажми /help_admin. 
@@ -472,6 +516,9 @@ async def becoming_an_admin(message: types.Message, state: FSMContext):
 
 @dp.message_handler(commands="un_admin")
 async def un_admin(message: types.Message):
+    """
+        Функция используется для изменения статуса admin на статус user
+    """
     if await check_status(message.from_user.id) == "admin":
         update = f"""Update users set status = %s where iduser = %s"""
         conn.execute(update, ("user", message.from_user.id))
@@ -485,6 +532,9 @@ async def un_admin(message: types.Message):
 @dp.message_handler(Text(equals="Добавить доменн"))
 @dp.message_handler(commands="add_domain")
 async def add_domain_to_bd(message: types.Message):
+    """
+        Функция входа в машину состояния и ожидания нового доменна
+    """
     if await check_status(message.from_user.id) == "admin":
         await Admin.domain.set()
         await message.answer("Введи доменн:")
@@ -494,6 +544,9 @@ async def add_domain_to_bd(message: types.Message):
 
 @dp.message_handler(state=Admin.domain)
 async def check_domain(message: types.Message, state: FSMContext):
+    """
+        Функция проверки нового доменна. В случае успеха, добавление в бд
+    """
     ans = await add_new_domain(message.text)
     if ans is None:
         await message.answer("Ошибка доступ к доменну. Попробуйте снова, изменив доменн.")
@@ -509,6 +562,9 @@ async def check_domain(message: types.Message, state: FSMContext):
 @dp.message_handler(Text(equals="Добавить хэштэг"))
 @dp.message_handler(commands="new_hashtag")
 async def add_hashtag_to_bd(message: types.Message):
+    """
+        Функция для входа в машину состояний и ожидания данных по новому хэштэгу
+    """
     if await check_status(message.from_user.id) == "admin":
         if len(load_hashtags) == 20:
             await message.answer("Максимальное количество хэштэгов для подписки 20")
@@ -521,16 +577,20 @@ async def add_hashtag_to_bd(message: types.Message):
 
 @dp.message_handler(state=Newhashtag.hashtag)
 async def add_hashtag_stage2(message: types.Message, state: FSMContext):
-    print(load_hashtags)
+    """
+        Функция проверки хэштэга
+    """
     if message.text in load_hashtags:
         await message.answer("Такой хэштэг уже есть в системе, попробуй снова")
         await asyncio.sleep(1)
+        # перезагрузка функции
     elif message.text[:1] != "#":
         await message.answer("Не найдена решетка(#) в хэштэге, попробуй снова")
         await asyncio.sleep(1)
     else:
         async with state.proxy() as data:
             data["hashtag"] = message.text
+        # добаление хэштэга в память машины состояний
         await Newhashtag.next()
         await message.answer("Теперь введи команду по хэштэгу"
                              " для пользователей(используй только латинский алфавит)"
@@ -539,6 +599,9 @@ async def add_hashtag_stage2(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Newhashtag.command_for_hashtag)
 async def add_hashtag_stage3(message: types.Message, state: FSMContext):
+    """
+        Функция проверки команды
+    """
     if message.text in load_commands:
         await message.answer("Такая команда уже есть в системе, попробуй снова")
         await asyncio.sleep(1)
@@ -548,6 +611,7 @@ async def add_hashtag_stage3(message: types.Message, state: FSMContext):
     else:
         async with state.proxy() as data:
             data["command"] = message.text
+        # добавление команды в память машины состояний
         await Newhashtag.next()
         await message.answer("Теперь введи Префикс"
                              "#инструкция")
@@ -555,6 +619,9 @@ async def add_hashtag_stage3(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Newhashtag.short_but)
 async def add_hashtag_stage4(message: types.Message, state: FSMContext):
+    """
+        Функция проверки сокращения команды
+    """
     cur.execute("SELECT short_for_sub FROM info_hashtag")
     check = cur.fetchall()
     if message.text in [i[0] for i in check]:
@@ -566,6 +633,7 @@ async def add_hashtag_stage4(message: types.Message, state: FSMContext):
     else:
         async with state.proxy() as data:
             data["short"] = message.text.upper()
+        # добавление хэштэга в память машины состояний
         await Newhashtag.next()
         await message.answer("Осталось немного. Введи описание для хэштэга"
                              "#инструкция")
@@ -573,6 +641,9 @@ async def add_hashtag_stage4(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Newhashtag.about_hashtag)
 async def add_hashtag_stage5(message: types.Message, state: FSMContext):
+    """
+         Функция добавления описания хэштэга
+    """
     async with state.proxy() as data:
         data["info"] = message.text
     await Newhashtag.next()
@@ -583,9 +654,14 @@ async def add_hashtag_stage5(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Newhashtag.url_hashtag)
 async def add_hashtag_stage6(message: types.Message, state: FSMContext):
+    """
+        Функция добавления ссылки на группу и
+        предпросмотра добавлененных данных по
+    """
     keyboard_tc = InlineKeyboardMarkup(resize_keyboard=True).add(
         InlineKeyboardButton('Да', callback_data='yes'),
         InlineKeyboardButton('Нет', callback_data='no'))
+    # создание клавиатуры
     async with state.proxy() as data:
         data["url"] = message.text
     async with state.proxy() as data:
@@ -603,15 +679,19 @@ async def add_hashtag_stage6(message: types.Message, state: FSMContext):
 
 @dp.callback_query_handler(state=Newhashtag.yes_or_no, text=["yes", "no"])
 async def add_hashtag_stage7(call: types.CallbackQuery, state: FSMContext):
+    """
+        Функция добавления информации по хэштэгу в бд
+    """
     if call.data == "yes":
         async with state.proxy() as data:
             cur.execute(
                 "INSERT INTO info_hashtag VALUES(%s, %s, %s, %s, %s, %s)",
                 (data["hashtag"], data["command"],
-                  data["short"], data["info"],
-                  data["url"], "YES")
+                 data["short"], data["info"],
+                 data["url"], "YES")
             )
         await varible()
+        # обновление переменных
         await call.message.answer("Хэштэг успешно добавлен")
         await state.finish()
     elif call.data == "no":
@@ -621,6 +701,9 @@ async def add_hashtag_stage7(call: types.CallbackQuery, state: FSMContext):
 
 @dp.message_handler(commands='global_message')
 async def global_message(message: types.Message):
+    """
+        Функция вхождения в машину состояний для рассылки сообщения пользователям
+    """
     if await check_status(message.from_user.id) == "admin":
         await Globmessage.info_message.set()
         await message.answer("Это функция отправки вашего сообщения всем подписчикам бота."
@@ -633,6 +716,9 @@ async def global_message(message: types.Message):
 
 @dp.message_handler(state=Globmessage.info_message)
 async def preview_global_message(message: types.Message, state: FSMContext):
+    """
+        Функция предпросмотра сообщения для пользователей
+    """
     keyboard_tc = InlineKeyboardMarkup(resize_keyboard=True).add(
         InlineKeyboardButton('Да', callback_data='yes'),
         InlineKeyboardButton('Нет', callback_data='no'))
@@ -649,6 +735,9 @@ async def preview_global_message(message: types.Message, state: FSMContext):
 
 @dp.callback_query_handler(state=Globmessage.yes_or_no, text=["yes", "no"])
 async def send_global_message(call: types.CallbackQuery, state: FSMContext):
+    """
+        Функция отправки сообщения администратора подписанным пользователям
+    """
     if call.data == "yes":
         async with state.proxy() as data:
             cur.execute("""SELECT * FROM users """)
@@ -669,6 +758,9 @@ async def send_global_message(call: types.CallbackQuery, state: FSMContext):
 
 @dp.message_handler(Text(equals="Добавленное"))
 async def added_admin(message: types.Message):
+    """
+        Функция вывода всех добавленных админом хэштэгов и доменнов
+    """
     if await check_status(message.from_user.id) == "admin":
         cur.execute(f"SELECT name FROM info_hashtag WHERE status = '{'YES'}'")
         check_hashtag = [i[0] for i in cur.fetchall()]
@@ -687,11 +779,17 @@ async def added_admin(message: types.Message):
 
 @dp.message_handler(content_types=types.ContentTypes.PHOTO)
 async def everything_else(msg: types.Message):
+    """
+        Функция ответа на фотографию
+    """
     await msg.answer('Красивенько 😍')
 
 
 @dp.message_handler(content_types=types.ContentTypes.TEXT)
 async def if_the_photo(msg: types.Message):
+    """
+        Функция ответа бота на неизвестную команду
+    """
     await msg.answer('Неизвестная для меня команда :(')
 
 
