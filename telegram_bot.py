@@ -706,7 +706,7 @@ async def global_message(message: types.Message):
     """
     if await check_status(message.from_user.id) == "admin":
         await Globmessage.info_message.set()
-        await message.answer("Это функция отправки вашего сообщения всем подписчикам бота."
+        await message.answer("Это функция nen отправки вашего сообщения всем подписчикам бота."
                              "Так вы можете уведомить подписчиков о"
                              " добавление или удаление хэштэга или же домена, а также о обновлениях бота."
                              "<b>!Будьте осторожны с этой функцией.!</b>")
