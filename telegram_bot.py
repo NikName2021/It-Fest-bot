@@ -672,7 +672,8 @@ async def add_hashtag_stage4(message: types.Message, state: FSMContext):
             data["short"] = message.text.upper()
         # добавление хэштэга в память машины состояний
         await Newhashtag.next()
-        await message.answer("Осталось немного. Введи информативное описание мероприятия для пользователей")
+        await message.answer("Осталось немного."
+                             " Введи информативное описание мероприятия для пользователей")
 
 
 @dp.message_handler(state=Newhashtag.about_hashtag)
@@ -826,7 +827,7 @@ async def scheduler():
     """
     Функция - таймер
     """
-    aioschedule.every(15).seconds.do(job)
+    aioschedule.every(10).minutes.do(job)
     # каждые 10 минут запускаем фунцию "job"
     while True:
         await aioschedule.run_pending()
