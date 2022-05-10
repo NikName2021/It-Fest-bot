@@ -1,6 +1,7 @@
 import psycopg2
 import os
 
+
 VERS = 5.131
 PASSWORD_FOR_ADMIN = os.getenv('PASSWORD_FOR_ADMIN')
 DATABASE_URL = os.getenv('DATABASE_URL')

@@ -16,7 +16,7 @@ async def save_all_post(posts_card, domain):
         search = f"INSERT INTO {domain} VALUES(%s, %s, %s, %s)"
     cur.execute(f"""SELECT domain FROM domains WHERE status = '{"NONE"}'""")
     standart_dom = [i[0] for i in cur.fetchall()]
-    cur.execute("SELECT name FROM info_hashtag ")
+    cur.execute("SELECT name FROM info_hashtag")
     load_hashtags = [i[0] for i in cur.fetchall()]
     for post in posts_card:
         if domain in standart_dom:
@@ -24,8 +24,8 @@ async def save_all_post(posts_card, domain):
                 cur.execute(f"SELECT * FROM nauchim_online WHERE time = {int(post['date'])}")
             else:
                 cur.execute(f"SELECT * FROM {domain} WHERE time = {int(post['date'])}")
-            load_hashtags = cur.fetchall()
-            if not bool(load_hashtags):
+            load_hash = cur.fetchall()
+            if not bool(load_hash):
                 # сохранение постов по таблицам
                 saves.append(
                     tuple([int(post["date"]), " ".join(re.findall(r'(#\S+)', post["text"])),
@@ -38,7 +38,8 @@ async def save_all_post(posts_card, domain):
             if i in load_hashtags:
                 # сохранение постов с нужными хэштэгами в need_post sql
                 cur.execute(f"SELECT * FROM need_post WHERE time = {int(post['date'])}")
-                if cur.fetchone() is None:
+                all_load = cur.fetchall()
+                if not bool(all_load):
                     need_post.append(
                         tuple([int(post["date"]),
                                " ".join(find),
