@@ -4,23 +4,28 @@ from config_bot import TOKEN_VK, VERS, conn, cur
 
 
 async def save_all_post(posts_card, domain):
-    """Функция для сохранения всех постов в sql базу данных"""
+    """
+    Функция для сохранения всех постов в sql базу данных
+    """
+    conn.autocommit = True
     saves = []
     need_post = []
     if domain == "nauchim.online":
         search = "INSERT INTO nauchim_online VALUES(%s, %s, %s, %s)"
-        check = 'SELECT * FROM nauchim_online WHERE time = %s'
     else:
         search = f"INSERT INTO {domain} VALUES(%s, %s, %s, %s)"
-        check = f'SELECT * FROM {domain} WHERE time = %s'
     cur.execute(f"""SELECT domain FROM domains WHERE status = '{"NONE"}'""")
     standart_dom = [i[0] for i in cur.fetchall()]
     cur.execute("SELECT name FROM info_hashtag ")
     load_hashtags = [i[0] for i in cur.fetchall()]
     for post in posts_card:
         if domain in standart_dom:
-            check_save = cur.execute(check, [post["date"]])
-            if check_save is not None:
+            if domain == "nauchim.online":
+                cur.execute(f"SELECT * FROM nauchim_online WHERE time = {int(post['date'])}")
+            else:
+                cur.execute(f"SELECT * FROM {domain} WHERE time = {int(post['date'])}")
+            load_hashtags = cur.fetchall()
+            if not bool(load_hashtags):
                 # сохранение постов по таблицам
                 saves.append(
                     tuple([int(post["date"]), " ".join(re.findall(r'(#\S+)', post["text"])),
@@ -44,7 +49,6 @@ async def save_all_post(posts_card, domain):
     cur.executemany("INSERT INTO need_post VALUES(1, %s, %s, %s, %s)", need_post)
     if domain in standart_dom:
         cur.executemany(search, saves)
-    conn.commit()
     print("Выполнено")
     # возвращаем новые посты с нужными хэштэгами для рассылки бота
     return need_post

@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-import logging
 import aioschedule
 import re
 from aiogram import Bot, Dispatcher, executor, types
@@ -12,9 +11,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils.exceptions import BotBlocked
-from aiogram.utils.executor import start_webhook
-from config_bot import (BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH,
-                        WEBAPP_HOST, WEBAPP_PORT, PASSWORD_FOR_ADMIN,
+from config_bot import (BOT_TOKEN, PASSWORD_FOR_ADMIN,
                         conn, cur)
 from database import parsing_domins, add_new_domain
 
@@ -32,6 +29,8 @@ cur.execute("""SELECT name, short_for_sub FROM info_hashtag """)
 but_and_news = {f'butnews{i[1]}': i[0] for i in cur.fetchall()}
 cur.execute("""SELECT name, short_for_sub FROM info_hashtag """)
 but_and_hash = {f'button{i[1]}': i[0] for i in cur.fetchall()}
+cur.execute("""SELECT name, command FROM info_hashtag """)
+hash_and_command = {i[0]: f'/{i[1]}' for i in cur.fetchall()}
 
 
 class Admin(StatesGroup):
@@ -54,16 +53,19 @@ class Newhashtag(StatesGroup):
 
 
 class Globmessage(StatesGroup):
-    """ Класс машины состояний,
-        который ожидает сообщение и подтверждение его отправки """
-
+    """
+    Класс машины состояний,
+        который ожидает сообщение и подтверждение его отправки
+    """
     info_message = State()
     yes_or_no = State()
 
 
 class Load(BoundFilter):
-    """ Класс - фильтр, проверяемый вхождение сообщения
-     пользователя в load_hashtag и load_commands"""
+    """
+    Класс - фильтр, проверяемый вхождение сообщения
+     пользователя в load_hashtag и load_commands
+     """
 
     async def check(self, message: types.Message):
         if "#" in message.text:
@@ -76,9 +78,10 @@ class Load(BoundFilter):
 
 
 class Loadunsub(BoundFilter):
-    """ Класс - фильтр, проверяемый вхождение сообщения
-         пользователя в hash_unsub.values"""
-
+    """
+    Класс - фильтр, проверяемый вхождение сообщения
+         пользователя в hash_unsub.values
+    """
     async def check(self, message: types.Message):
         if message.text[1:] in [i[1:] for i in hash_unsub.values()]:
             return True
@@ -86,8 +89,10 @@ class Loadunsub(BoundFilter):
 
 
 class Loadnews(BoundFilter):
-    """ Класс - фильтр, проверяемый вхождение сообщения
-            пользователя в but_and_news.keys"""
+    """
+    Класс - фильтр, проверяемый вхождение сообщения
+            пользователя в but_and_news.keys
+    """
 
     async def check(self, call: types.CallbackQuery):
         if call.data in [i for i in but_and_news.keys()]:
@@ -96,8 +101,10 @@ class Loadnews(BoundFilter):
 
 
 class Loadsub(BoundFilter):
-    """ Класс - фильтр, проверяемый вхождение сообщения
-                пользователя в but_and_hash.keys"""
+    """
+    Класс - фильтр, проверяемый вхождение сообщения
+                пользователя в but_and_hash.keys
+    """
 
     async def check(self, call: types.CallbackQuery):
         if call.data in but_and_hash.keys():
@@ -106,7 +113,10 @@ class Loadsub(BoundFilter):
 
 
 async def sub_users(id_player):
-    """Функция проверки подписок пользователя"""
+    """
+    Функция проверки подписок пользователя
+    """
+
     cur.execute(f"SELECT * FROM users WHERE iduser = {int(id_player)} ")
     check_save = cur.fetchone()
     if isinstance(check_save, tuple):
@@ -114,7 +124,10 @@ async def sub_users(id_player):
 
 
 async def check_status(id_us):
-    """Функция проверки пользоваетеля на администратора"""
+    """
+    Функция проверки пользоваетеля на администратора
+    """
+
     cur.execute(f"SELECT * FROM users WHERE iduser = {int(id_us)}")
     check_save = cur.fetchone()
     if isinstance(check_save, tuple) and check_save[2] == "admin":
@@ -129,6 +142,7 @@ async def varible():
     global hash_unsub
     global but_and_hash
     global but_and_news
+    global hash_and_command
     cur.execute("""SELECT name FROM info_hashtag """)
     load_hashtags = [i[0] for i in cur.fetchall()]
     cur.execute("""SELECT command FROM info_hashtag """)
@@ -137,6 +151,8 @@ async def varible():
     hash_unsub = {i[0]: f'/unsub_{i[1]}' for i in cur.fetchall()}
     cur.execute("""SELECT name, short_for_sub FROM info_hashtag """)
     but_and_news = {f'butnews{i[1]}': i[0] for i in cur.fetchall()}
+    cur.execute("""SELECT name, short_for_sub FROM info_hashtag """)
+    but_and_hash = {f'button{i[1]}': i[0] for i in cur.fetchall()}
     cur.execute("""SELECT name, short_for_sub FROM info_hashtag """)
     but_and_hash = {f'button{i[1]}': i[0] for i in cur.fetchall()}
 
@@ -184,24 +200,28 @@ async def cmd_start(message: types.Message):
     button_contact = KeyboardButton(text='Контакты')
     if await check_status(message.from_user.id) == "admin":
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        keyboard.add(
-            button_mysubs, button_2)
-        keyboard.add(button_1, KeyboardButton(text='Команды admin'))
+        keyboard.add(button_2, button_1)
+        keyboard.add(button_mysubs, KeyboardButton(text='Команды admin'))
+        keyboard.add(KeyboardButton(text='Помощь(/help)'))
     else:
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        keyboard.add(
-            button_mysubs, button_2)
-        keyboard.add(button_contact, button_1)
-    await message.answer("""Привет! Это телеграмм бот по хэштэгам!
+        keyboard.add(button_2, button_1)
+        keyboard.add(button_mysubs, button_contact)
+        keyboard.add(KeyboardButton(text='Помощь(/help)'))
+    if message.text == "Вернуться":
+        await message.answer("Привет!", reply_markup=keyboard)
+    else:
+        await message.answer("""Привет! Это телеграмм бот по хэштэгам!
 Для справки и помощи по командам бота, нажми на /help""", reply_markup=keyboard)
 
 
+@dp.message_handler(Text(equals="Помощь(/help)"))
 @dp.message_handler(commands="help")
 async def help_user(message: types.Message):
     sub = '\n'.join([f"/{i}" for i in load_commands])
     un_sub = '\n'.join([f"/unsub_{i}" for i in load_commands])
-    await message.answer(f"""<b>Это справочник по командам бота.</b>
-Перезапуск бота, нажми /start  
+    await message.answer(f"""<b>Справка по командам бота.</b>
+Возврат в главное меню, нажми /start  
 Вывод контактов организатора, нажми /contacts
 Вывод подписок на мероприятия, нажми /mysubs
 Для подписки на мероприятия и вывода 3 новостей нажми:
@@ -233,10 +253,13 @@ async def my_subscriptions(message: types.Message):
     check_save = await sub_users(id_player)
     # достаем информацию по пользователю из базы данных
     if check_save:
-        subs = '\n'.join([str(i) for i in check_save.split()])
-        un_command = '\n'.join([hash_unsub[i] for i in [str(i) for i in check_save.split()]])
+        sub = check_save.split()
+        subs = '\n'.join([f"{i} ({v})" for i, v in
+                          dict(sorted(hash_and_command.items(), key=lambda x: x[1])).items()
+                          if i in sub])
+        un_command = '\n'.join(sorted([hash_unsub[i] for i in [str(i) for i in sub]]))
         # un_command - ссылки-команды для отписки от определенной рассылки
-        await message.answer(f"""<b>Твои мероприятия:</b>
+        await message.answer(f"""<b>Твои подписки:</b>
 <b>{subs}</b>
 
 Отписаться от рассылки новостей сообщества, нажми на хэштэг:
@@ -257,8 +280,13 @@ async def all_unsub(message: types.Message):
     check_save = await sub_users(id_player)
     # достаем информацию по пользователю из базы данных
     if check_save:
-        cur.execute(f"Delete from users where iduser = {id_player}")
+        if not await check_status(id_player):
+            cur.execute(f"Delete from users where iduser = {id_player}")
         # удаляем всю информацию о пользователе из базы
+        else:
+            update = f"""Update users set subscibes = %s where iduser = %s"""
+            cur.execute(update, ('', id_player))
+            # удаление только подписок у админа
         await message.answer('Вы отписались от всех рассылок')
     else:
         await message.answer('<b>Вы не подписаны ни на одно сообщество</b>')
@@ -278,8 +306,13 @@ async def unsub_on_hash(message: types.Message):
         if hash_sub in sub:
             sub.remove(hash_sub)
             if not bool(sub):
-                cur.execute(f"Delete from users where iduser = {id_player}")
+                if not await check_status(id_player):
+                    cur.execute(f"Delete from users where iduser = {id_player}")
                 # полное удаление пользователя, если он отписался от единственной рассылки
+                else:
+                    update = f"""Update users set subscibes = %s where iduser = %s"""
+                    cur.execute(update, ('', id_player))
+                # удаление только подписок у админа
             else:
                 update = f"""Update users set subscibes = %s where iduser = %s"""
                 cur.execute(update, (" ".join(sub), id_player))
@@ -295,7 +328,7 @@ async def unsub_on_hash(message: types.Message):
 @dp.message_handler(Text(equals="Последние 10 новостей"))
 async def get_10_news(message: types.Message):
     cur.execute('SELECT * FROM need_post ORDER BY time DESC')
-    rec = cur.fetchall()[:10]
+    rec = cur.fetchall()[:10][::-1]
     for i in rec:
         news = f"<b>{datetime.datetime.fromtimestamp(i[1])}</b>\n" \
                f"{i[4]}\n" \
@@ -322,6 +355,7 @@ async def send_news(call: types.CallbackQuery):
             break
         # подбор  последних 3 новостей по запрошенному хэштэгу"
     if bool(news):
+        news = news[::-1]
         for i in news:
             new_send = f"<b>{datetime.datetime.fromtimestamp(i[1])}</b>\n" \
                        f"{i[4]}\n" \
@@ -339,10 +373,11 @@ async def sub_to_news_on_hash(call: types.CallbackQuery):
     """
     button = but_and_hash[call.data]
     id_player = call.from_user.id
-    check_save = await sub_users(id_player)
-    if check_save:
+    cur.execute(f"SELECT * FROM users WHERE iduser = {int(id_player)} ")
+    check_save = cur.fetchone()
+    if isinstance(check_save, tuple):
         # если пользователь присутствует в базе пользователей
-        sub = [str(i) for i in check_save.split()]
+        sub = [str(i) for i in check_save[1].split()]
         # подписки пользователя
         if button in sub:
             await call.message.answer(f'Вы уже подписаны на рассылку по {button}')
@@ -360,7 +395,7 @@ async def sub_to_news_on_hash(call: types.CallbackQuery):
         await call.message.answer(f'Вы подписались на рассылку по {button}')
 
 
-@dp.message_handler(Text(equals="Прошлая клавиатура"))
+@dp.message_handler(Text(equals="Основные хэштэги"))
 @dp.message_handler(Text(equals="Подпишись на новости"))
 async def st_hashtags(message: types.Message):
     """
@@ -383,17 +418,17 @@ async def st_hashtags(message: types.Message):
 async def adden_hashtags(message: types.Message):
     """
         Функция создания кнопок клавиатуры по добавленным админом хэштэгам
-        для удобной подписки
+        для удобного перемещения
     """
     cur.execute(f"SELECT * FROM info_hashtag WHERE Status = 'YES'")
     check_save = [i[0] for i in cur.fetchall()]
     if bool(check_save):
         keyboard_hs = types.ReplyKeyboardMarkup(resize_keyboard=True).add(
             *[types.KeyboardButton(text=i) for i in check_save],
-            types.KeyboardButton(text="Прошлая клавиатура")
+            types.KeyboardButton(text="Основные хэштэги")
         )
         # поменять 332
-        await message.answer("Хэштэги добавленные админом группы",
+        await message.answer("Хэштэги, добавленные админом группы",
                              reply_markup=keyboard_hs)
     else:
         await message.answer("Администратор еще не добавил ни одного дополнительного хэштэга")
@@ -428,13 +463,13 @@ async def help_admin(message: types.Message):
     Функция вывода специальных команд админа
     """
     if await check_status(message.from_user.id) == "admin":
-        await message.answer("""<b>Это справочник по командам бота для админа.</b>
-Перезапуск бота, нажми /start  
-Вывод контактов организатора, нажми ...
-Вывод подписок на мероприятия, нажми ...
-Для подписки на мероприятия и вывода 3 новостей нажми:
-/global_message
-/un_admin""")
+        await message.answer("""<b>Это справочник по командам админа.</b>
+/new_hashtag - добавление нового хэштэга
+/add_domain - добавление нового доменна
+/global_message - рассылка сообщения админа всем подписчикам
+/adds - просмотр добавленных хэштэгов и доменнов
+/cancel - отмена ввода данных. Работает при любом вводе данных
+/un_admin - смена статуса с admin на user""")
     else:
         await message.answer("Нет прав на данную команду")
 
@@ -468,7 +503,7 @@ async def commands_admin(message: types.Message):
         keyboard.add(button_help, button_add)
         keyboard.add(KeyboardButton(text="Вернуться"))
     else:
-        await message.answer("Ты не являешься админом")
+        await message.answer("Нет прав на данную команду")
         return
     await message.answer("""Команды admin""", reply_markup=keyboard)
 
@@ -521,10 +556,9 @@ async def un_admin(message: types.Message):
     """
     if await check_status(message.from_user.id) == "admin":
         update = f"""Update users set status = %s where iduser = %s"""
-        conn.execute(update, ("user", message.from_user.id))
-        conn.commit()
-        await message.answer('''Теперь ты юзер.
-<b>Рекомендуем перезапустить бота по команде /start</b>''')
+        cur.execute(update, ("user", message.from_user.id))
+        await message.answer("""Теперь ты 'user'.
+<b>Рекомендуем перезапустить бота по команде /start</b>""")
     else:
         await message.answer('Нет прав на данную команду')
 
@@ -539,7 +573,7 @@ async def add_domain_to_bd(message: types.Message):
         await Admin.domain.set()
         await message.answer("Введи доменн:")
     else:
-        await message.answer("Ты не являешься админом")
+        await message.answer("Нет прав на данную команду")
 
 
 @dp.message_handler(state=Admin.domain)
@@ -570,9 +604,10 @@ async def add_hashtag_to_bd(message: types.Message):
             await message.answer("Максимальное количество хэштэгов для подписки 20")
         else:
             await Newhashtag.hashtag.set()
-            await message.answer("Введи новый хэштэг #инструкция:")
+            await message.answer("""Введи новый хэштэг. Ввод хэштэга должен начинаться с символа #:
+(Для отмены ввода, используй /cancel)""")
     else:
-        await message.answer("Ты не являешься админом")
+        await message.answer("Нет прав на данную команду")
 
 
 @dp.message_handler(state=Newhashtag.hashtag)
@@ -592,9 +627,9 @@ async def add_hashtag_stage2(message: types.Message, state: FSMContext):
             data["hashtag"] = message.text
         # добаление хэштэга в память машины состояний
         await Newhashtag.next()
-        await message.answer("Теперь введи команду по хэштэгу"
-                             " для пользователей(используй только латинский алфавит)"
-                             "#инструкция")
+        await message.answer("Теперь введи команду для хэштэга. Для ввода используйте только"
+                             " латинский алфавит и символ _. Рекомендация:"
+                             " название команды должно быть максимально приближено названию хэштэга")
 
 
 @dp.message_handler(state=Newhashtag.command_for_hashtag)
@@ -613,8 +648,10 @@ async def add_hashtag_stage3(message: types.Message, state: FSMContext):
             data["command"] = message.text
         # добавление команды в память машины состояний
         await Newhashtag.next()
-        await message.answer("Теперь введи Префикс"
-                             "#инструкция")
+        await message.answer("""Каждому хэштэгу необходимо
+присвоить уникальное сокращение (используется для навигации,
+невиден для пользователей). Используйте заглавные буквы латинского алфавита.
+Например: <b>#VRARFest3D - VRAR</b>""")
 
 
 @dp.message_handler(state=Newhashtag.short_but)
@@ -625,18 +662,17 @@ async def add_hashtag_stage4(message: types.Message, state: FSMContext):
     cur.execute("SELECT short_for_sub FROM info_hashtag")
     check = cur.fetchall()
     if message.text in [i[0] for i in check]:
-        await message.answer("Такой префикс уже есть в системе, попробуй снова")
+        await message.answer("Такое сокращение уже есть в системе, попробуй снова")
         await asyncio.sleep(1)
     elif re.search(r'[^a-zA-Z]', message.text):
-        await message.reply("Команда не соответствует условию, попробуй снова")
+        await message.reply("Сокращение не соответствует условию, попробуй снова")
         await asyncio.sleep(1)
     else:
         async with state.proxy() as data:
             data["short"] = message.text.upper()
         # добавление хэштэга в память машины состояний
         await Newhashtag.next()
-        await message.answer("Осталось немного. Введи описание для хэштэга"
-                             "#инструкция")
+        await message.answer("Осталось немного. Введи информативное описание мероприятия для пользователей")
 
 
 @dp.message_handler(state=Newhashtag.about_hashtag)
@@ -647,9 +683,8 @@ async def add_hashtag_stage5(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["info"] = message.text
     await Newhashtag.next()
-    await message.answer("Осталось немного. Введи ссылку на сообщество,"
-                         " где можно найти события по хэштэгу"
-                         "#инструкция")
+    await message.answer("Введи ссылку на сообщество, "
+                         "где можно найти мероприятия по хэштэгу")
 
 
 @dp.message_handler(state=Newhashtag.url_hashtag)
@@ -706,12 +741,13 @@ async def global_message(message: types.Message):
     """
     if await check_status(message.from_user.id) == "admin":
         await Globmessage.info_message.set()
-        await message.answer("Это функция nen отправки вашего сообщения всем подписчикам бота."
+        await message.answer("Это функция отправки вашего сообщения всем подписчикам бота."
                              "Так вы можете уведомить подписчиков о"
-                             " добавление или удаление хэштэга или же домена, а также о обновлениях бота."
-                             "<b>!Будьте осторожны с этой функцией.!</b>")
+                             " добавлении или удалении хэштэга или же домена, а также об обновлениях бота."
+                             "<b>!Будьте осторожны с этой функцией!</b>"
+                             "Введите сообщение для рассылки:")
     else:
-        await message.answer("Ты не являешься админом")
+        await message.answer("Нет прав на данную команду")
 
 
 @dp.message_handler(state=Globmessage.info_message)
@@ -725,8 +761,8 @@ async def preview_global_message(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["message"] = message.text
     await message.answer(f"""
-<b>Предпросмотр сообщения:</b>
-<b> Сообщение от администратора группы </b>
+<b>Предпросмотр сообщения:
+Сообщение от администратора группы </b>
 {message.text}
 Для подтверждения отправки сообщения, выбери <b>'да'</b>
 Для отмены отправки, выбери <b>'нет'</b>""", reply_markup=keyboard_tc)
@@ -756,6 +792,7 @@ async def send_global_message(call: types.CallbackQuery, state: FSMContext):
         await state.finish()
 
 
+@dp.message_handler(commands='adds')
 @dp.message_handler(Text(equals="Добавленное"))
 async def added_admin(message: types.Message):
     """
@@ -777,14 +814,6 @@ async def added_admin(message: types.Message):
         await message.answer("Ты не являешься админом")
 
 
-@dp.message_handler(content_types=types.ContentTypes.PHOTO)
-async def everything_else(msg: types.Message):
-    """
-        Функция ответа на фотографию
-    """
-    await msg.answer('Красивенько 😍')
-
-
 @dp.message_handler(content_types=types.ContentTypes.TEXT)
 async def if_the_photo(msg: types.Message):
     """
@@ -797,7 +826,7 @@ async def scheduler():
     """
     Функция - таймер
     """
-    aioschedule.every(10).minutes.do(job)
+    aioschedule.every(15).seconds.do(job)
     # каждые 10 минут запускаем фунцию "job"
     while True:
         await aioschedule.run_pending()
@@ -805,7 +834,6 @@ async def scheduler():
 
 
 async def on_startup(dp):
-    # await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
     asyncio.create_task(scheduler())
     dp.filters_factory.bind(Load)
     dp.filters_factory.bind(Loadnews)
@@ -816,20 +844,7 @@ async def on_startup(dp):
 async def on_shutdown(dp):
     cur.close()
     conn.close()
-    # await bot.delete_webhook()
 
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=False, on_startup=on_startup)
-
-# if __name__ == '__main__':
-#     logging.basicConfig(level=logging.INFO)
-#     start_webhook(
-#         dispatcher=dp,
-#         webhook_path=WEBHOOK_PATH,
-#         skip_updates=True,
-#         on_startup=on_startup,
-#         on_shutdown=on_shutdown,
-#         host=WEBAPP_HOST,
-#         port=WEBAPP_PORT,
-#     )
