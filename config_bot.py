@@ -1,2 +1,17 @@
-token_bot = '5199305489:AAH4jGBgsjahtS0eNKeaofBGqGMOXk_Tw4g'
-# hash_bot = "http://t.me/fest2020_bot"
+import psycopg2
+import os
+
+
+VERS = 5.131
+PASSWORD_FOR_ADMIN = os.getenv('PASSWORD_FOR_ADMIN')
+DATABASE_URL = os.getenv('DATABASE_URL')
+TOKEN_VK = os.getenv('TOKEN_VK')
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+
+if not BOT_TOKEN:
+    print('You have forgot to set BOT_TOKEN')
+    quit()
+
+# database connection
+conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+cur = conn.cursor()
