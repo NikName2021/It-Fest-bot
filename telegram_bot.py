@@ -179,7 +179,7 @@ async def job():
                         # то отправляем ему новость
                         try:
                             new_send = f"<b>Новость по вашей подписке на {i}</b>\n" \
-                                       f"<b>{datetime.datetime.fromtimestamp(new[0])}</b>\n" \
+                                       f"<b>{datetime.datetime.fromtimestamp(new[0] + 10800)}</b>\n" \
                                        f"{new[3]}\n" \
                                        f"<u>{new[2]}</u>\n"
                             await bot.send_message(str(user[0]), new_send)
@@ -330,7 +330,7 @@ async def get_10_news(message: types.Message):
     cur.execute('SELECT * FROM need_post ORDER BY time DESC')
     rec = cur.fetchall()[:10][::-1]
     for i in rec:
-        news = f"<b>{datetime.datetime.fromtimestamp(i[1])}</b>\n" \
+        news = f"<b>{datetime.datetime.fromtimestamp(i[1] + 10800)}</b>\n" \
                f"{i[4]}\n" \
                f"<u>{i[3]}</u>\n"
         await message.answer(news)
@@ -357,7 +357,7 @@ async def send_news(call: types.CallbackQuery):
     if bool(news):
         news = news[::-1]
         for i in news:
-            new_send = f"<b>{datetime.datetime.fromtimestamp(i[1])}</b>\n" \
+            new_send = f"<b>{datetime.datetime.fromtimestamp(i[1] + 10800)}</b>\n" \
                        f"{i[4]}\n" \
                        f"<u>{i[3]}</u>\n"
             await call.message.answer(new_send)
@@ -629,7 +629,8 @@ async def add_hashtag_stage2(message: types.Message, state: FSMContext):
         await Newhashtag.next()
         await message.answer("Теперь введи команду для хэштэга. Для ввода используйте только"
                              " латинский алфавит и символ _. Рекомендация:"
-                             " название команды должно быть максимально приближено названию хэштэга")
+                             " название команды должно быть максимально"
+                             " приближено названию хэштэга")
 
 
 @dp.message_handler(state=Newhashtag.command_for_hashtag)
@@ -744,7 +745,8 @@ async def global_message(message: types.Message):
         await Globmessage.info_message.set()
         await message.answer("Это функция отправки вашего сообщения всем подписчикам бота."
                              "Так вы можете уведомить подписчиков о"
-                             " добавлении или удалении хэштэга или же домена, а также об обновлениях бота."
+                             " добавлении или удалении хэштэга или же домена,"
+                             " а также об обновлениях бота."
                              "<b>!Будьте осторожны с этой функцией!</b>"
                              "Введите сообщение для рассылки:")
     else:
