@@ -1,3 +1,2 @@
-бот - https://t.me/fest2020_bot
+бот - https://t.me/MyFest2022_bot
 пароль для добавления админа - telegrambot
-команда для добавления админа - /admin
